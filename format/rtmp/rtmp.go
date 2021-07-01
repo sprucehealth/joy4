@@ -771,7 +771,7 @@ func (self *Conn) connectPlay() (err error) {
 	return
 }
 
-func (self *Conn) ReadPacket() (pkt av.Packet, err error) {
+func (self *Conn) ReadPacket(skipData bool) (pkt av.Packet, err error) {
 	if err = self.prepare(stageCodecDataDone, prepareReading); err != nil {
 		return
 	}

@@ -450,7 +450,7 @@ func (self *Demuxer) Streams() (streams []av.CodecData, err error) {
 	return
 }
 
-func (self *Demuxer) ReadPacket() (pkt av.Packet, err error) {
+func (self *Demuxer) ReadPacket(skipData bool) (pkt av.Packet, err error) {
 	if err = self.prepare(); err != nil {
 		return
 	}

@@ -298,7 +298,7 @@ func (self *Stream) sampleCount() int {
 	}
 }
 
-func (self *Demuxer) ReadPacket() (pkt av.Packet, err error) {
+func (self *Demuxer) ReadPacket(skipData bool) (pkt av.Packet, err error) {
 	if err = self.probe(); err != nil {
 		return
 	}
@@ -319,7 +319,7 @@ func (self *Demuxer) ReadPacket() (pkt av.Packet, err error) {
 		fmt.Printf("ReadPacket: chosen index=%v time=%v\n", chosen.idx, chosen.tsToTime(chosen.dts))
 	}
 	tm := chosen.tsToTime(chosen.dts)
-	if pkt, err = chosen.readPacket(); err != nil {
+	if pkt, err = chosen.readPacket(skipData); err != nil {
 		return
 	}
 	pkt.Time = tm
@@ -357,7 +357,7 @@ func (self *Demuxer) SeekToTime(tm time.Duration) (err error) {
 	return
 }
 
-func (self *Stream) readPacket() (pkt av.Packet, err error) {
+func (self *Stream) readPacket(skipData bool) (pkt av.Packet, err error) {
 	if !self.isSampleValid() {
 		err = io.EOF
 		return
@@ -373,9 +373,11 @@ func (self *Stream) readPacket() (pkt av.Packet, err error) {
 	}
 
 	sampleOffset := int64(chunkOffset) + self.sampleOffsetInChunk
-	pkt.Data = make([]byte, sampleSize)
-	if err = self.demuxer.readat(sampleOffset, pkt.Data); err != nil {
-		return
+	if !skipData {
+		pkt.Data = make([]byte, sampleSize)
+		if err = self.demuxer.readat(sampleOffset, pkt.Data); err != nil {
+			return
+		}
 	}
 
 	if self.sample.SyncSample != nil {

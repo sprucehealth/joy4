@@ -1220,7 +1220,7 @@ func (self *Client) readPacket() (pkt av.Packet, err error) {
 	return
 }
 
-func (self *Client) ReadPacket() (pkt av.Packet, err error) {
+func (self *Client) ReadPacket(skipData bool) (pkt av.Packet, err error) {
 	if err = self.prepare(stageCodecDataDone); err != nil {
 		return
 	}

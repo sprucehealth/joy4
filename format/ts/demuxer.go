@@ -66,7 +66,7 @@ func (self *Demuxer) probe() (err error) {
 	return
 }
 
-func (self *Demuxer) ReadPacket() (pkt av.Packet, err error) {
+func (self *Demuxer) ReadPacket(skipData bool) (pkt av.Packet, err error) {
 	if err = self.probe(); err != nil {
 		return
 	}

@@ -82,7 +82,7 @@ func (self *Demuxer) Streams() (streams []av.CodecData, err error) {
 	return
 }
 
-func (self *Demuxer) ReadPacket() (pkt av.Packet, err error) {
+func (self *Demuxer) ReadPacket(skipData bool) (pkt av.Packet, err error) {
 	var adtshdr []byte
 	var config aacparser.MPEG4AudioConfig
 	var hdrlen, framelen, samples int

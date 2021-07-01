@@ -1,6 +1,7 @@
 package mp4io
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -386,11 +387,12 @@ func ReadFileAtoms(r io.ReadSeeker, onlyTags []Tag) ([]Atom, error) {
 	}
 	var atoms []Atom
 	var err error
+	taghdr := make([]byte, 8)
+	// Stop if we're found all the tags we were looking for
 	for len(onlyTags) == 0 || len(onlyTagMap) != 0 {
 		offset, _ := r.Seek(0, 1)
-		taghdr := make([]byte, 8)
 		if _, err := io.ReadFull(r, taghdr); err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				break
 			}
 			return atoms, err
