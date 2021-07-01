@@ -376,18 +376,37 @@ func (self *ElemStreamDesc) parseDescHdr(b []byte, offset int) (n int, tag uint8
 	return
 }
 
-func ReadFileAtoms(r io.ReadSeeker) (atoms []Atom, err error) {
-	for {
+func ReadFileAtoms(r io.ReadSeeker, onlyTags []Tag) ([]Atom, error) {
+	var onlyTagMap map[Tag]struct{}
+	if len(onlyTags) != 0 {
+		onlyTagMap = make(map[Tag]struct{})
+		for _, t := range onlyTags {
+			onlyTagMap[t] = struct{}{}
+		}
+	}
+	var atoms []Atom
+	var err error
+	for len(onlyTags) == 0 || len(onlyTagMap) != 0 {
 		offset, _ := r.Seek(0, 1)
 		taghdr := make([]byte, 8)
-		if _, err = io.ReadFull(r, taghdr); err != nil {
+		if _, err := io.ReadFull(r, taghdr); err != nil {
 			if err == io.EOF {
-				err = nil
+				break
 			}
-			return
+			return atoms, err
 		}
 		size := pio.U32BE(taghdr[0:])
 		tag := Tag(pio.U32BE(taghdr[4:]))
+		// Skip tags we don't want
+		if _, keep := onlyTagMap[tag]; len(onlyTags) != 0 && !keep {
+			if _, err = r.Seek(int64(size)-8, 1); err != nil {
+				return atoms, err
+			}
+			continue
+		}
+		if onlyTagMap != nil {
+			delete(onlyTagMap, tag)
+		}
 
 		var atom Atom
 		switch tag {
@@ -400,23 +419,23 @@ func ReadFileAtoms(r io.ReadSeeker) (atoms []Atom, err error) {
 		if atom != nil {
 			b := make([]byte, int(size))
 			if _, err = io.ReadFull(r, b[8:]); err != nil {
-				return
+				return atoms, err
 			}
 			copy(b, taghdr)
 			if _, err = atom.Unmarshal(b, int(offset)); err != nil {
-				return
+				return atoms, err
 			}
 			atoms = append(atoms, atom)
 		} else {
 			dummy := &Dummy{Tag_: tag}
 			dummy.setPos(int(offset), int(size))
 			if _, err = r.Seek(int64(size)-8, 1); err != nil {
-				return
+				return atoms, err
 			}
 			atoms = append(atoms, dummy)
 		}
 	}
-	return
+	return atoms, nil
 }
 
 func printatom(out io.Writer, root Atom, depth int) {

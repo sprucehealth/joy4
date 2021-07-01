@@ -44,21 +44,21 @@ func (self *Demuxer) readat(pos int64, b []byte) (err error) {
 	return
 }
 
-func (self *Demuxer) probe() (err error) {
+func (self *Demuxer) probe() error {
 	if self.movieAtom != nil {
-		return
+		return nil
+	}
+
+	var atoms []mp4io.Atom
+	var err error
+	if atoms, err = mp4io.ReadFileAtoms(self.r, []mp4io.Tag{mp4io.MOOV}); err != nil {
+		return err
+	}
+	if _, err := self.r.Seek(0, 0); err != nil {
+		return err
 	}
 
 	var moov *mp4io.Movie
-	var atoms []mp4io.Atom
-
-	if atoms, err = mp4io.ReadFileAtoms(self.r); err != nil {
-		return
-	}
-	if _, err = self.r.Seek(0, 0); err != nil {
-		return
-	}
-
 	for _, atom := range atoms {
 		if atom.Tag() == mp4io.MOOV {
 			moov = atom.(*mp4io.Movie)
@@ -66,11 +66,10 @@ func (self *Demuxer) probe() (err error) {
 	}
 
 	if moov == nil {
-		err = fmt.Errorf("mp4: 'moov' atom not found")
-		return
+		return errors.New("mp4: 'moov' atom not found")
 	}
 
-	self.streams = []*Stream{}
+	self.streams = make([]*Stream, 0, len(moov.Tracks))
 	for i, atrack := range moov.Tracks {
 		stream := &Stream{
 			trackAtom: atrack,
@@ -81,25 +80,24 @@ func (self *Demuxer) probe() (err error) {
 			stream.sample = atrack.Media.Info.Sample
 			stream.timeScale = int64(atrack.Media.Header.TimeScale)
 		} else {
-			err = fmt.Errorf("mp4: sample table not found")
-			return
+			return errors.New("mp4: sample table not found")
 		}
 
 		if avc1 := atrack.GetAVC1Conf(); avc1 != nil {
 			if stream.CodecData, err = h264parser.NewCodecDataFromAVCDecoderConfRecord(avc1.Data); err != nil {
-				return
+				return err
 			}
 			self.streams = append(self.streams, stream)
 		} else if esds := atrack.GetElemStreamDesc(); esds != nil {
 			if stream.CodecData, err = aacparser.NewCodecDataFromMPEG4AudioConfigBytes(esds.DecConfig); err != nil {
-				return
+				return err
 			}
 			self.streams = append(self.streams, stream)
 		}
 	}
 
 	self.movieAtom = moov
-	return
+	return nil
 }
 
 func (self *Stream) setSampleIndex(index int) (err error) {
