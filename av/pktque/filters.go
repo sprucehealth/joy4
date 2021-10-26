@@ -2,6 +2,7 @@
 package pktque
 
 import (
+	"context"
 	"time"
 
 	"github.com/sprucehealth/joy4/av"
@@ -36,9 +37,9 @@ type FilterDemuxer struct {
 	audioidx int
 }
 
-func (self FilterDemuxer) ReadPacket(skipData bool) (pkt av.Packet, err error) {
+func (self FilterDemuxer) ReadPacket(ctx context.Context, skipData bool) (pkt av.Packet, err error) {
 	if self.streams == nil {
-		if self.streams, err = self.Demuxer.Streams(); err != nil {
+		if self.streams, err = self.Demuxer.Streams(ctx); err != nil {
 			return
 		}
 		for i, stream := range self.streams {
@@ -51,7 +52,7 @@ func (self FilterDemuxer) ReadPacket(skipData bool) (pkt av.Packet, err error) {
 	}
 
 	for {
-		if pkt, err = self.Demuxer.ReadPacket(skipData); err != nil {
+		if pkt, err = self.Demuxer.ReadPacket(ctx, skipData); err != nil {
 			return
 		}
 		var drop bool

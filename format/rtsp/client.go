@@ -3,6 +3,7 @@ package rtsp
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"crypto/md5"
 	"encoding/base64"
 	"encoding/binary"
@@ -171,7 +172,7 @@ func (self *Client) prepare(stage int) (err error) {
 	return
 }
 
-func (self *Client) Streams() (streams []av.CodecData, err error) {
+func (self *Client) Streams(ctx context.Context) (streams []av.CodecData, err error) {
 	if err = self.prepare(stageCodecDataDone); err != nil {
 		return
 	}
@@ -1220,7 +1221,7 @@ func (self *Client) readPacket() (pkt av.Packet, err error) {
 	return
 }
 
-func (self *Client) ReadPacket(skipData bool) (pkt av.Packet, err error) {
+func (self *Client) ReadPacket(ctx context.Context, skipData bool) (pkt av.Packet, err error) {
 	if err = self.prepare(stageCodecDataDone); err != nil {
 		return
 	}

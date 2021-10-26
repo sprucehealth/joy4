@@ -1,6 +1,7 @@
 package avconv
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"time"
@@ -36,22 +37,22 @@ func (self *Demuxer) Close() (err error) {
 	return
 }
 
-func (self *Demuxer) Streams() (streams []av.CodecData, err error) {
-	if err = self.prepare(); err != nil {
+func (self *Demuxer) Streams(ctx context.Context) (streams []av.CodecData, err error) {
+	if err = self.prepare(ctx); err != nil {
 		return
 	}
 	streams = self.streams
 	return
 }
 
-func (self *Demuxer) ReadPacket() (pkt av.Packet, err error) {
-	if err = self.prepare(); err != nil {
+func (self *Demuxer) ReadPacket(ctx context.Context, skipData bool) (pkt av.Packet, err error) {
+	if err = self.prepare(ctx); err != nil {
 		return
 	}
-	return self.transdemux.ReadPacket()
+	return self.transdemux.ReadPacket(ctx, skipData)
 }
 
-func (self *Demuxer) prepare() (err error) {
+func (self *Demuxer) prepare(ctx context.Context) (err error) {
 	if self.transdemux != nil {
 		return
 	}
@@ -112,7 +113,7 @@ func (self *Demuxer) prepare() (err error) {
 		Options: transopts,
 		Demuxer: self.Demuxer,
 	}
-	if self.streams, err = self.transdemux.Streams(); err != nil {
+	if self.streams, err = self.transdemux.Streams(ctx); err != nil {
 		return
 	}
 
@@ -193,13 +194,15 @@ func ConvertCmdline(args []string) (err error) {
 	}
 	defer convdemux.Close()
 
+	ctx := context.Background()
+
 	var streams []av.CodecData
-	if streams, err = demuxer.Streams(); err != nil {
+	if streams, err = demuxer.Streams(ctx); err != nil {
 		return
 	}
 
 	var convstreams []av.CodecData
-	if convstreams, err = convdemux.Streams(); err != nil {
+	if convstreams, err = convdemux.Streams(ctx); err != nil {
 		return
 	}
 
@@ -229,7 +232,7 @@ func ConvertCmdline(args []string) (err error) {
 
 	for {
 		var pkt av.Packet
-		if pkt, err = filterdemux.ReadPacket(); err != nil {
+		if pkt, err = filterdemux.ReadPacket(ctx, false); err != nil {
 			if err == io.EOF {
 				err = nil
 				break

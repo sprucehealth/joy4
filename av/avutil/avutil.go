@@ -2,6 +2,7 @@ package avutil
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"net/url"
@@ -109,7 +110,7 @@ func (self *Handlers) NewAudioEncoder(typ av.CodecType) (enc av.AudioEncoder, er
 			}
 		}
 	}
-	err = fmt.Errorf("avutil: encoder", typ, "not found")
+	err = fmt.Errorf("avutil: encoder %s not found", typ)
 	return
 }
 
@@ -121,7 +122,7 @@ func (self *Handlers) NewAudioDecoder(codec av.AudioCodecData) (dec av.AudioDeco
 			}
 		}
 	}
-	err = fmt.Errorf("avutil: decoder", codec.Type(), "not found")
+	err = fmt.Errorf("avutil: decoder %s not found", codec.Type())
 	return
 }
 
@@ -276,10 +277,10 @@ func Create(url string) (muxer av.MuxCloser, err error) {
 	return DefaultHandlers.Create(url)
 }
 
-func CopyPackets(dst av.PacketWriter, src av.PacketReader) (err error) {
+func CopyPackets(ctx context.Context, dst av.PacketWriter, src av.PacketReader) (err error) {
 	for {
 		var pkt av.Packet
-		if pkt, err = src.ReadPacket(false); err != nil {
+		if pkt, err = src.ReadPacket(ctx, false); err != nil {
 			if err == io.EOF {
 				break
 			}
@@ -292,15 +293,15 @@ func CopyPackets(dst av.PacketWriter, src av.PacketReader) (err error) {
 	return
 }
 
-func CopyFile(dst av.Muxer, src av.Demuxer) (err error) {
+func CopyFile(ctx context.Context, dst av.Muxer, src av.Demuxer) (err error) {
 	var streams []av.CodecData
-	if streams, err = src.Streams(); err != nil {
+	if streams, err = src.Streams(ctx); err != nil {
 		return
 	}
 	if err = dst.WriteHeader(streams); err != nil {
 		return
 	}
-	if err = CopyPackets(dst, src); err != nil {
+	if err = CopyPackets(ctx, dst, src); err != nil {
 		return
 	}
 	if err = dst.WriteTrailer(); err != nil {

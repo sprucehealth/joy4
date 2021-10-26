@@ -3,6 +3,7 @@ package rtmp
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
@@ -771,7 +772,7 @@ func (self *Conn) connectPlay() (err error) {
 	return
 }
 
-func (self *Conn) ReadPacket(skipData bool) (pkt av.Packet, err error) {
+func (self *Conn) ReadPacket(ctx context.Context, skipData bool) (pkt av.Packet, err error) {
 	if err = self.prepare(stageCodecDataDone, prepareReading); err != nil {
 		return
 	}
@@ -845,7 +846,7 @@ func (self *Conn) prepare(stage int, flags int) (err error) {
 	return
 }
 
-func (self *Conn) Streams() (streams []av.CodecData, err error) {
+func (self *Conn) Streams(ctx context.Context) (streams []av.CodecData, err error) {
 	if err = self.prepare(stageCodecDataDone, prepareReading); err != nil {
 		return
 	}

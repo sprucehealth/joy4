@@ -2,6 +2,7 @@ package aac
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 	"time"
@@ -64,7 +65,7 @@ func NewDemuxer(r io.Reader) *Demuxer {
 	}
 }
 
-func (self *Demuxer) Streams() (streams []av.CodecData, err error) {
+func (self *Demuxer) Streams(ctx context.Context) (streams []av.CodecData, err error) {
 	if self.codecdata == nil {
 		var adtshdr []byte
 		var config aacparser.MPEG4AudioConfig
@@ -82,7 +83,7 @@ func (self *Demuxer) Streams() (streams []av.CodecData, err error) {
 	return
 }
 
-func (self *Demuxer) ReadPacket(skipData bool) (pkt av.Packet, err error) {
+func (self *Demuxer) ReadPacket(ctx context.Context, skipData bool) (pkt av.Packet, err error) {
 	var adtshdr []byte
 	var config aacparser.MPEG4AudioConfig
 	var hdrlen, framelen, samples int

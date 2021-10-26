@@ -1,6 +1,7 @@
 package mp4io
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -377,7 +378,7 @@ func (self *ElemStreamDesc) parseDescHdr(b []byte, offset int) (n int, tag uint8
 	return
 }
 
-func ReadFileAtoms(r io.ReadSeeker, onlyTags []Tag) ([]Atom, error) {
+func ReadFileAtoms(ctx context.Context, r io.ReadSeeker, onlyTags []Tag) ([]Atom, error) {
 	var onlyTagMap map[Tag]struct{}
 	if len(onlyTags) != 0 {
 		onlyTagMap = make(map[Tag]struct{})
@@ -390,6 +391,12 @@ func ReadFileAtoms(r io.ReadSeeker, onlyTags []Tag) ([]Atom, error) {
 	taghdr := make([]byte, 8)
 	// Stop if we're found all the tags we were looking for
 	for len(onlyTags) == 0 || len(onlyTagMap) != 0 {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
+
 		offset, _ := r.Seek(0, 1)
 		if _, err := io.ReadFull(r, taghdr); err != nil {
 			if errors.Is(err, io.EOF) {

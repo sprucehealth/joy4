@@ -1,6 +1,7 @@
 package mp4
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -24,8 +25,8 @@ func NewDemuxer(r io.ReadSeeker) *Demuxer {
 	}
 }
 
-func (self *Demuxer) Streams() (streams []av.CodecData, err error) {
-	if err = self.probe(); err != nil {
+func (self *Demuxer) Streams(ctx context.Context) (streams []av.CodecData, err error) {
+	if err = self.probe(ctx); err != nil {
 		return
 	}
 	for _, stream := range self.streams {
@@ -44,14 +45,14 @@ func (self *Demuxer) readat(pos int64, b []byte) (err error) {
 	return
 }
 
-func (self *Demuxer) probe() error {
+func (self *Demuxer) probe(ctx context.Context) error {
 	if self.movieAtom != nil {
 		return nil
 	}
 
 	var atoms []mp4io.Atom
 	var err error
-	if atoms, err = mp4io.ReadFileAtoms(self.r, []mp4io.Tag{mp4io.MOOV}); err != nil {
+	if atoms, err = mp4io.ReadFileAtoms(ctx, self.r, []mp4io.Tag{mp4io.MOOV}); err != nil {
 		return err
 	}
 	if _, err := self.r.Seek(0, 0); err != nil {
@@ -298,8 +299,8 @@ func (self *Stream) sampleCount() int {
 	}
 }
 
-func (self *Demuxer) ReadPacket(skipData bool) (pkt av.Packet, err error) {
-	if err = self.probe(); err != nil {
+func (self *Demuxer) ReadPacket(ctx context.Context, skipData bool) (pkt av.Packet, err error) {
+	if err = self.probe(ctx); err != nil {
 		return
 	}
 	if len(self.streams) == 0 {

@@ -2,6 +2,7 @@ package flv
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 
@@ -442,7 +443,7 @@ func (self *Demuxer) prepare() (err error) {
 	return
 }
 
-func (self *Demuxer) Streams() (streams []av.CodecData, err error) {
+func (self *Demuxer) Streams(ctx context.Context) (streams []av.CodecData, err error) {
 	if err = self.prepare(); err != nil {
 		return
 	}
@@ -450,7 +451,7 @@ func (self *Demuxer) Streams() (streams []av.CodecData, err error) {
 	return
 }
 
-func (self *Demuxer) ReadPacket(skipData bool) (pkt av.Packet, err error) {
+func (self *Demuxer) ReadPacket(ctx context.Context, skipData bool) (pkt av.Packet, err error) {
 	if err = self.prepare(); err != nil {
 		return
 	}

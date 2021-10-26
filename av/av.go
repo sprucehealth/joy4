@@ -2,6 +2,7 @@
 package av
 
 import (
+	"context"
 	"fmt"
 	"time"
 )
@@ -195,7 +196,7 @@ type PacketWriter interface {
 }
 
 type PacketReader interface {
-	ReadPacket(skipData bool) (Packet, error)
+	ReadPacket(ctx context.Context, skipData bool) (Packet, error)
 }
 
 // Muxer describes the steps of writing compressed audio/video packets into container formats like MP4/FLV/MPEG-TS.
@@ -215,8 +216,8 @@ type MuxCloser interface {
 
 // Demuxer can read compressed audio/video packets from container formats like MP4/FLV/MPEG-TS.
 type Demuxer interface {
-	PacketReader                   // read compressed audio/video packets
-	Streams() ([]CodecData, error) // reads the file header, contains video/audio meta infomations
+	PacketReader                                      // read compressed audio/video packets
+	Streams(ctx context.Context) ([]CodecData, error) // reads the file header, contains video/audio meta infomations
 }
 
 // Demuxer with Close() method

@@ -2,6 +2,7 @@
 package transcode
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -198,10 +199,10 @@ type Demuxer struct {
 	outpkts    []av.Packet
 }
 
-func (self *Demuxer) prepare() (err error) {
+func (self *Demuxer) prepare(ctx context.Context) (err error) {
 	if self.transcoder == nil {
 		var streams []av.CodecData
-		if streams, err = self.Demuxer.Streams(); err != nil {
+		if streams, err = self.Demuxer.Streams(ctx); err != nil {
 			return
 		}
 		if self.transcoder, err = NewTranscoder(streams, self.Options); err != nil {
@@ -211,18 +212,24 @@ func (self *Demuxer) prepare() (err error) {
 	return
 }
 
-func (self *Demuxer) ReadPacket() (pkt av.Packet, err error) {
-	if err = self.prepare(); err != nil {
+func (self *Demuxer) ReadPacket(ctx context.Context, skipData bool) (pkt av.Packet, err error) {
+	if err = self.prepare(ctx); err != nil {
 		return
 	}
 	for {
+		select {
+		case <-ctx.Done():
+			err = ctx.Err()
+			return
+		default:
+		}
 		if len(self.outpkts) > 0 {
 			pkt = self.outpkts[0]
 			self.outpkts = self.outpkts[1:]
 			return
 		}
 		var rpkt av.Packet
-		if rpkt, err = self.Demuxer.ReadPacket(); err != nil {
+		if rpkt, err = self.Demuxer.ReadPacket(ctx, skipData); err != nil {
 			return
 		}
 		if self.outpkts, err = self.transcoder.Do(rpkt); err != nil {
@@ -232,8 +239,8 @@ func (self *Demuxer) ReadPacket() (pkt av.Packet, err error) {
 	return
 }
 
-func (self *Demuxer) Streams() (streams []av.CodecData, err error) {
-	if err = self.prepare(); err != nil {
+func (self *Demuxer) Streams(ctx context.Context) (streams []av.CodecData, err error) {
+	if err = self.prepare(ctx); err != nil {
 		return
 	}
 	return self.transcoder.Streams()
