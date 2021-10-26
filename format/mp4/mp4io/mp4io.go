@@ -405,6 +405,11 @@ func ReadFileAtoms(ctx context.Context, r io.ReadSeeker, onlyTags []Tag) ([]Atom
 			return atoms, err
 		}
 		size := pio.U32BE(taghdr[0:])
+		// Avoid looping forever. The tag heade is 8 bytes so at least account for that.
+		// This isn't necessarily a completely broken file, but it's not totally valid either likely.
+		if size < 8 {
+			size = 8
+		}
 		tag := Tag(pio.U32BE(taghdr[4:]))
 		// Skip tags we don't want
 		if _, keep := onlyTagMap[tag]; len(onlyTags) != 0 && !keep {
