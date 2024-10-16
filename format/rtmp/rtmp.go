@@ -533,7 +533,6 @@ func (self *Conn) readConnect() (err error) {
 				self.stage++
 				return
 			}
-
 		}
 	}
 
@@ -1049,8 +1048,10 @@ func (self *Conn) writeSetBufferLength(msgsid uint32, timestamp uint32) (err err
 	return
 }
 
-const chunkHeaderLength = 12
-const FlvTimestampMax = 0xFFFFFF
+const (
+	chunkHeaderLength = 12
+	FlvTimestampMax   = 0xFFFFFF
+)
 
 func (self *Conn) fillChunkHeader(b []byte, csid uint32, timestamp int32, msgtypeid uint8, msgsid uint32, msgdatalen int) (n int) {
 	//  0                   1                   2                   3
@@ -1530,18 +1531,18 @@ func (self *Conn) handshakeClient() (err error) {
 
 	C0C1C2 := random[:1536*2+1]
 	C0 := C0C1C2[:1]
-	//C1 := C0C1C2[1:1536+1]
+	// C1 := C0C1C2[1:1536+1]
 	C0C1 := C0C1C2[:1536+1]
 	C2 := C0C1C2[1536+1:]
 
 	S0S1S2 := random[1536*2+1:]
-	//S0 := S0S1S2[:1]
+	// S0 := S0S1S2[:1]
 	S1 := S0S1S2[1 : 1536+1]
-	//S0S1 := S0S1S2[:1536+1]
-	//S2 := S0S1S2[1536+1:]
+	// S0S1 := S0S1S2[:1536+1]
+	// S2 := S0S1S2[1536+1:]
 
 	C0[0] = 3
-	//hsCreate01(C0C1, hsClientFullKey)
+	// hsCreate01(C0C1, hsClientFullKey)
 
 	// > C0C1
 	if _, err = self.bufw.Write(C0C1); err != nil {

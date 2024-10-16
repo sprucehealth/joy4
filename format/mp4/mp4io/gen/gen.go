@@ -280,7 +280,7 @@ func newdecl(origname, name string, params, res []*ast.Field, stmts []ast.Stmt) 
 	return &ast.FuncDecl{
 		Recv: &ast.FieldList{
 			List: []*ast.Field{
-				&ast.Field{
+				{
 					Names: []*ast.Ident{ast.NewIdent("self")},
 					Type:  ast.NewIdent(origname),
 				},
@@ -322,12 +322,12 @@ func getstructputgetlenfn(origfn *ast.FuncDecl, origname string) (decls []ast.De
 		Type: &ast.FuncType{
 			Params: &ast.FieldList{
 				List: []*ast.Field{
-					&ast.Field{Names: []*ast.Ident{ast.NewIdent("b")}, Type: ast.NewIdent("[]byte")},
+					{Names: []*ast.Ident{ast.NewIdent("b")}, Type: ast.NewIdent("[]byte")},
 				},
 			},
 			Results: &ast.FieldList{
 				List: []*ast.Field{
-					&ast.Field{Names: []*ast.Ident{ast.NewIdent("self")}, Type: ast.NewIdent(origname)},
+					{Names: []*ast.Ident{ast.NewIdent("self")}, Type: ast.NewIdent(origname)},
 				},
 			},
 		},
@@ -339,8 +339,8 @@ func getstructputgetlenfn(origfn *ast.FuncDecl, origname string) (decls []ast.De
 		Type: &ast.FuncType{
 			Params: &ast.FieldList{
 				List: []*ast.Field{
-					&ast.Field{Names: []*ast.Ident{ast.NewIdent("b")}, Type: ast.NewIdent("[]byte")},
-					&ast.Field{Names: []*ast.Ident{ast.NewIdent("self")}, Type: ast.NewIdent(origname)},
+					{Names: []*ast.Ident{ast.NewIdent("b")}, Type: ast.NewIdent("[]byte")},
+					{Names: []*ast.Ident{ast.NewIdent("self")}, Type: ast.NewIdent(origname)},
 				},
 			},
 		},
@@ -572,7 +572,8 @@ func getatommarshalfn(origfn *ast.FuncDecl,
 
 	unmarshalatom := func(typ, init string) (stmts []ast.Stmt) {
 		return []ast.Stmt{
-			&ast.AssignStmt{Tok: token.DEFINE,
+			&ast.AssignStmt{
+				Tok: token.DEFINE,
 				Lhs: []ast.Expr{ast.NewIdent("atom")}, Rhs: []ast.Expr{ast.NewIdent("&" + typ + "{" + init + "}")},
 			},
 			&ast.IfStmt{
@@ -590,10 +591,12 @@ func getatommarshalfn(origfn *ast.FuncDecl,
 	unmrashalatoms := func() (stmts []ast.Stmt) {
 		blocks := []ast.Stmt{}
 
-		blocks = append(blocks, &ast.AssignStmt{Tok: token.DEFINE, Lhs: []ast.Expr{ast.NewIdent("tag")},
+		blocks = append(blocks, &ast.AssignStmt{
+			Tok: token.DEFINE, Lhs: []ast.Expr{ast.NewIdent("tag")},
 			Rhs: []ast.Expr{ast.NewIdent("Tag(pio.U32BE(b[n+4:]))")},
 		})
-		blocks = append(blocks, &ast.AssignStmt{Tok: token.DEFINE, Lhs: []ast.Expr{ast.NewIdent("size")},
+		blocks = append(blocks, &ast.AssignStmt{
+			Tok: token.DEFINE, Lhs: []ast.Expr{ast.NewIdent("size")},
 			Rhs: []ast.Expr{ast.NewIdent("int(pio.U32BE(b[n:]))")},
 		})
 		blocks = append(blocks, &ast.IfStmt{
@@ -922,31 +925,31 @@ func getatommarshalfn(origfn *ast.FuncDecl,
 	childrenstmts = append(childrenstmts, &ast.ReturnStmt{})
 
 	decls = append(decls, newdecl(origname, "Marshal", []*ast.Field{
-		&ast.Field{Names: []*ast.Ident{ast.NewIdent("b")}, Type: ast.NewIdent("[]byte")},
+		{Names: []*ast.Ident{ast.NewIdent("b")}, Type: ast.NewIdent("[]byte")},
 	}, []*ast.Field{
-		&ast.Field{Names: []*ast.Ident{ast.NewIdent("n")}, Type: ast.NewIdent("int")},
+		{Names: []*ast.Ident{ast.NewIdent("n")}, Type: ast.NewIdent("int")},
 	}, marshalwrapstmts()))
 
 	decls = append(decls, newdecl(origname, "marshal", []*ast.Field{
-		&ast.Field{Names: []*ast.Ident{ast.NewIdent("b")}, Type: ast.NewIdent("[]byte")},
+		{Names: []*ast.Ident{ast.NewIdent("b")}, Type: ast.NewIdent("[]byte")},
 	}, []*ast.Field{
-		&ast.Field{Names: []*ast.Ident{ast.NewIdent("n")}, Type: ast.NewIdent("int")},
+		{Names: []*ast.Ident{ast.NewIdent("n")}, Type: ast.NewIdent("int")},
 	}, marstmts))
 
 	decls = append(decls, newdecl(origname, "Len", []*ast.Field{}, []*ast.Field{
-		&ast.Field{Names: []*ast.Ident{ast.NewIdent("n")}, Type: ast.NewIdent("int")},
+		{Names: []*ast.Ident{ast.NewIdent("n")}, Type: ast.NewIdent("int")},
 	}, lenstmts))
 
 	decls = append(decls, newdecl("*"+origname, "Unmarshal", []*ast.Field{
-		&ast.Field{Names: []*ast.Ident{ast.NewIdent("b")}, Type: ast.NewIdent("[]byte")},
-		&ast.Field{Names: []*ast.Ident{ast.NewIdent("offset")}, Type: ast.NewIdent("int")},
+		{Names: []*ast.Ident{ast.NewIdent("b")}, Type: ast.NewIdent("[]byte")},
+		{Names: []*ast.Ident{ast.NewIdent("offset")}, Type: ast.NewIdent("int")},
 	}, []*ast.Field{
-		&ast.Field{Names: []*ast.Ident{ast.NewIdent("n")}, Type: ast.NewIdent("int")},
-		&ast.Field{Names: []*ast.Ident{ast.NewIdent("err")}, Type: ast.NewIdent("error")},
+		{Names: []*ast.Ident{ast.NewIdent("n")}, Type: ast.NewIdent("int")},
+		{Names: []*ast.Ident{ast.NewIdent("err")}, Type: ast.NewIdent("error")},
 	}, unmarstmts))
 
 	decls = append(decls, newdecl(origname, "Children", []*ast.Field{}, []*ast.Field{
-		&ast.Field{Names: []*ast.Ident{ast.NewIdent("r")}, Type: ast.NewIdent("[]Atom")},
+		{Names: []*ast.Ident{ast.NewIdent("r")}, Type: ast.NewIdent("[]Atom")},
 	}, childrenstmts))
 
 	return
@@ -1003,10 +1006,12 @@ func genatoms(filename, outfilename string) {
 
 	tagfuncdecl := func(name, tag string) (decls ast.Decl) {
 		return newdecl(name, "Tag", []*ast.Field{}, []*ast.Field{
-			&ast.Field{Type: ast.NewIdent("Tag")},
+			{Type: ast.NewIdent("Tag")},
 		}, []ast.Stmt{
 			&ast.ReturnStmt{
-				Results: []ast.Expr{ast.NewIdent(strings.ToUpper(tag))}}})
+				Results: []ast.Expr{ast.NewIdent(strings.ToUpper(tag))},
+			},
+		})
 	}
 
 	for k, v := range tagnamemap {

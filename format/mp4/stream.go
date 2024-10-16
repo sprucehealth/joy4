@@ -59,8 +59,9 @@ func (self *Stream) timeToTs(tm time.Duration) int64 {
 
 func (self *Stream) tsToTime(ts int64) time.Duration {
 	timeScale := self.timeScale
+	// Avoid a divide by zero
 	if timeScale == 0 {
 		timeScale = 1
 	}
-	return time.Duration(ts) * time.Second / time.Duration(self.timeScale)
+	return time.Duration(ts) * time.Second / time.Duration(timeScale)
 }

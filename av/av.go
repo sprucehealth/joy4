@@ -124,8 +124,10 @@ var (
 	NELLYMOSER = MakeAudioCodecType(avCodecTypeMagic + 5)
 )
 
-const codecTypeAudioBit = 0x1
-const codecTypeOtherBits = 1
+const (
+	codecTypeAudioBit  = 0x1
+	codecTypeOtherBits = 1
+)
 
 func (self CodecType) String() string {
 	switch self {
@@ -170,7 +172,7 @@ const avCodecTypeMagic = 233333
 // CodecData is some important bytes for initializing audio/video decoder,
 // can be converted to VideoCodecData or AudioCodecData using:
 //
-//     codecdata.(AudioCodecData) or codecdata.(VideoCodecData)
+//	codecdata.(AudioCodecData) or codecdata.(VideoCodecData)
 //
 // for H264, CodecData is AVCDecoderConfigure bytes, includes SPS/PPS.
 type CodecData interface {

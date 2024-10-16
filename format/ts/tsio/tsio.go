@@ -18,19 +18,27 @@ const (
 	PMT_PID = 0x1000
 )
 
-const TableIdPMT = 2
-const TableExtPMT = 1
+const (
+	TableIdPMT  = 2
+	TableExtPMT = 1
+)
 
-const TableIdPAT = 0
-const TableExtPAT = 1
+const (
+	TableIdPAT  = 0
+	TableExtPAT = 1
+)
 
-const MaxPESHeaderLength = 19
-const MaxTSHeaderLength = 12
+const (
+	MaxPESHeaderLength = 19
+	MaxTSHeaderLength  = 12
+)
 
-var ErrPESHeader = fmt.Errorf("invalid PES header")
-var ErrPSIHeader = fmt.Errorf("invalid PSI header")
-var ErrParsePMT = fmt.Errorf("invalid PMT")
-var ErrParsePAT = fmt.Errorf("invalid PAT")
+var (
+	ErrPESHeader = fmt.Errorf("invalid PES header")
+	ErrPSIHeader = fmt.Errorf("invalid PSI header")
+	ErrParsePMT  = fmt.Errorf("invalid PMT")
+	ErrParsePAT  = fmt.Errorf("invalid PAT")
+)
 
 const (
 	ElementaryStreamTypeH264    = 0x1B

@@ -199,8 +199,10 @@ Additionally, there is a new variable called NALULengthSizeMinusOne. This confus
 An advantage to this format is the ability to configure the decoder at the start and jump into the middle of a stream. This is a common use case where the media is available on a random access medium such as a hard drive, and is therefore used in common container formats such as MP4 and MKV.
 */
 
-var StartCodeBytes = []byte{0, 0, 1}
-var AUDBytes = []byte{0, 0, 0, 1, 0x9, 0xf0, 0, 0, 0, 1} // AUD
+var (
+	StartCodeBytes = []byte{0, 0, 1}
+	AUDBytes       = []byte{0, 0, 0, 1, 0x9, 0xf0, 0, 0, 0, 1} // AUD
+)
 
 func CheckNALUsType(b []byte) (typ int) {
 	_, typ = SplitNALUs(b)
@@ -696,7 +698,6 @@ const (
 )
 
 func ParseSliceHeaderFromNALU(packet []byte) (sliceType SliceType, err error) {
-
 	if len(packet) <= 1 {
 		err = fmt.Errorf("h264parser: packet too short to parse slice header")
 		return

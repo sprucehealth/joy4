@@ -32,9 +32,11 @@ func amf0ParseErr(message string, offset int, err error) error {
 	}
 }
 
-type AMFMap map[string]interface{}
-type AMFArray []interface{}
-type AMFECMAArray map[string]interface{}
+type (
+	AMFMap       map[string]interface{}
+	AMFArray     []interface{}
+	AMFECMAArray map[string]interface{}
+)
 
 func parseBEFloat64(b []byte) float64 {
 	return math.Float64frombits(pio.U64BE(b))

@@ -274,8 +274,10 @@ const (
 	FILE_HAS_VIDEO = 0x1
 )
 
-const TagHeaderLength = 11
-const TagTrailerLength = 4
+const (
+	TagHeaderLength  = 11
+	TagTrailerLength = 4
+)
 
 func ParseTagHeader(b []byte) (tag Tag, ts int32, datalen int, err error) {
 	tagtype := b[0]

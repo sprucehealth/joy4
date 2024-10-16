@@ -98,7 +98,7 @@ func (self *Queue) WritePacket(pkt av.Packet) (err error) {
 			break
 		}
 	}
-	//println("shrink", self.curgopcount, self.maxgopcount, self.buf.Head, self.buf.Tail, "count", self.buf.Count, "size", self.buf.Size)
+	// println("shrink", self.curgopcount, self.maxgopcount, self.buf.Head, self.buf.Tail, "count", self.buf.Count, "size", self.buf.Size)
 
 	self.cond.Broadcast()
 
