@@ -1,6 +1,7 @@
 package mp4io
 
 import (
+	"encoding/binary"
 	"time"
 
 	"github.com/sprucehealth/joy4/utils/bits/pio"
@@ -182,20 +183,32 @@ func (self TrackFrag) Tag() Tag {
 
 const STSZ = Tag(0x7374737a)
 
-func (self SampleSize) Tag() Tag {
+func (SampleSize) Tag() Tag {
 	return STSZ
 }
 
 const TFHD = Tag(0x74666864)
 
-func (self TrackFragHeader) Tag() Tag {
+func (TrackFragHeader) Tag() Tag {
 	return TFHD
 }
 
 const TKHD = Tag(0x746b6864)
 
-func (self TrackHeader) Tag() Tag {
+func (TrackHeader) Tag() Tag {
 	return TKHD
+}
+
+const EDTS = Tag(0x65647473)
+
+func (Edit) Tag() Tag {
+	return EDTS
+}
+
+const ELST = Tag(0x656c7374)
+
+func (EditList) Tag() Tag {
+	return ELST
 }
 
 const SMHD = Tag(0x736d6864)
@@ -254,71 +267,62 @@ func (self Movie) Len() (n int) {
 	return
 }
 
-func (self *Movie) Unmarshal(b []byte, offset int) (n int, err error) {
-	(&self.AtomPos).setPos(offset, len(b))
+func (m *Movie) Unmarshal(b []byte, offset int) (n int, err error) {
+	m.setPos(offset, len(b))
 	n += 8
 	for n+8 < len(b) {
 		tag := Tag(pio.U32BE(b[n+4:]))
 		size := int(pio.U32BE(b[n:]))
 		if len(b) < n+size {
-			err = parseErr("TagSizeInvalid", n+offset, err)
-			return
+			return n, parseErr("TagSizeInvalid", n+offset, err)
 		}
 		switch tag {
 		case MVHD:
-			{
-				atom := &MovieHeader{}
-				if _, err = atom.Unmarshal(b[n:n+size], offset+n); err != nil {
-					err = parseErr("mvhd", n+offset, err)
-					return
-				}
-				self.Header = atom
+			atom := &MovieHeader{}
+			if _, err = atom.Unmarshal(b[n:n+size], offset+n); err != nil {
+				err = parseErr("mvhd", n+offset, err)
+				return
 			}
+			m.Header = atom
 		case MVEX:
-			{
-				atom := &MovieExtend{}
-				if _, err = atom.Unmarshal(b[n:n+size], offset+n); err != nil {
-					err = parseErr("mvex", n+offset, err)
-					return
-				}
-				self.MovieExtend = atom
+			atom := &MovieExtend{}
+			if _, err = atom.Unmarshal(b[n:n+size], offset+n); err != nil {
+				err = parseErr("mvex", n+offset, err)
+				return
 			}
+			m.MovieExtend = atom
 		case TRAK:
-			{
-				atom := &Track{}
-				if _, err = atom.Unmarshal(b[n:n+size], offset+n); err != nil {
-					err = parseErr("trak", n+offset, err)
-					return
-				}
-				self.Tracks = append(self.Tracks, atom)
+			atom := &Track{}
+			if _, err = atom.Unmarshal(b[n:n+size], offset+n); err != nil {
+				err = parseErr("trak", n+offset, err)
+				return
 			}
+			m.Tracks = append(m.Tracks, atom)
 		default:
-			{
-				atom := &Dummy{Tag_: tag, Data: b[n : n+size]}
-				if _, err = atom.Unmarshal(b[n:n+size], offset+n); err != nil {
-					err = parseErr("", n+offset, err)
-					return
-				}
-				self.Unknowns = append(self.Unknowns, atom)
+			atom := &Dummy{Tag_: tag, Data: b[n : n+size]}
+			if _, err = atom.Unmarshal(b[n:n+size], offset+n); err != nil {
+				err = parseErr("", n+offset, err)
+				return
 			}
+			m.Unknowns = append(m.Unknowns, atom)
 		}
 		n += size
 	}
 	return
 }
 
-func (self Movie) Children() (r []Atom) {
-	if self.Header != nil {
-		r = append(r, self.Header)
+func (m *Movie) Children() []Atom {
+	var atoms []Atom
+	if m.Header != nil {
+		atoms = append(atoms, m.Header)
 	}
-	if self.MovieExtend != nil {
-		r = append(r, self.MovieExtend)
+	if m.MovieExtend != nil {
+		atoms = append(atoms, m.MovieExtend)
 	}
-	for _, atom := range self.Tracks {
-		r = append(r, atom)
+	for _, atom := range m.Tracks {
+		atoms = append(atoms, atom)
 	}
-	r = append(r, self.Unknowns...)
-	return
+	return append(atoms, m.Unknowns...)
 }
 
 type MovieHeader struct {
@@ -521,97 +525,94 @@ func (self MovieHeader) Children() (r []Atom) {
 type Track struct {
 	Header   *TrackHeader
 	Media    *Media
+	Edit     *Edit
 	Unknowns []Atom
 	AtomPos
 }
 
-func (self Track) Marshal(b []byte) (n int) {
+func (t *Track) Marshal(b []byte) (n int) {
 	pio.PutU32BE(b[4:], uint32(TRAK))
-	n += self.marshal(b[8:]) + 8
+	n += t.marshal(b[8:]) + 8
 	pio.PutU32BE(b[0:], uint32(n))
 	return
 }
 
-func (self Track) marshal(b []byte) (n int) {
-	if self.Header != nil {
-		n += self.Header.Marshal(b[n:])
+func (t *Track) marshal(b []byte) (n int) {
+	if t.Header != nil {
+		n += t.Header.Marshal(b[n:])
 	}
-	if self.Media != nil {
-		n += self.Media.Marshal(b[n:])
+	if t.Media != nil {
+		n += t.Media.Marshal(b[n:])
 	}
-	for _, atom := range self.Unknowns {
+	for _, atom := range t.Unknowns {
 		n += atom.Marshal(b[n:])
 	}
 	return
 }
 
-func (self Track) Len() (n int) {
+func (t *Track) Len() (n int) {
 	n += 8
-	if self.Header != nil {
-		n += self.Header.Len()
+	if t.Header != nil {
+		n += t.Header.Len()
 	}
-	if self.Media != nil {
-		n += self.Media.Len()
+	if t.Media != nil {
+		n += t.Media.Len()
 	}
-	for _, atom := range self.Unknowns {
+	for _, atom := range t.Unknowns {
 		n += atom.Len()
 	}
 	return
 }
 
-func (self *Track) Unmarshal(b []byte, offset int) (n int, err error) {
-	(&self.AtomPos).setPos(offset, len(b))
+func (t *Track) Unmarshal(b []byte, offset int) (n int, err error) {
+	t.AtomPos.setPos(offset, len(b))
 	n += 8
 	for n+8 < len(b) {
 		tag := Tag(pio.U32BE(b[n+4:]))
 		size := int(pio.U32BE(b[n:]))
 		if len(b) < n+size {
-			err = parseErr("TagSizeInvalid", n+offset, err)
-			return
+			return n, parseErr("TagSizeInvalid", n+offset, err)
 		}
 		switch tag {
 		case TKHD:
-			{
-				atom := &TrackHeader{}
-				if _, err = atom.Unmarshal(b[n:n+size], offset+n); err != nil {
-					err = parseErr("tkhd", n+offset, err)
-					return
-				}
-				self.Header = atom
+			atom := &TrackHeader{}
+			if _, err = atom.Unmarshal(b[n:n+size], offset+n); err != nil {
+				return n, parseErr("tkhd", n+offset, err)
 			}
+			t.Header = atom
 		case MDIA:
-			{
-				atom := &Media{}
-				if _, err = atom.Unmarshal(b[n:n+size], offset+n); err != nil {
-					err = parseErr("mdia", n+offset, err)
-					return
-				}
-				self.Media = atom
+			atom := &Media{}
+			if _, err = atom.Unmarshal(b[n:n+size], offset+n); err != nil {
+				return n, parseErr("mdia", n+offset, err)
 			}
+			t.Media = atom
+		case EDTS:
+			atom := &Edit{}
+			if _, err = atom.Unmarshal(b[n:n+size], offset+n); err != nil {
+				return n, parseErr("edts", n+offset, err)
+			}
+			t.Edit = atom
 		default:
-			{
-				atom := &Dummy{Tag_: tag, Data: b[n : n+size]}
-				if _, err = atom.Unmarshal(b[n:n+size], offset+n); err != nil {
-					err = parseErr("", n+offset, err)
-					return
-				}
-				self.Unknowns = append(self.Unknowns, atom)
+			atom := &Dummy{Tag_: tag, Data: b[n : n+size]}
+			if _, err = atom.Unmarshal(b[n:n+size], offset+n); err != nil {
+				return n, parseErr("", n+offset, err)
 			}
+			t.Unknowns = append(t.Unknowns, atom)
 		}
 		n += size
 	}
-	return
+	return n, err
 }
 
-func (self Track) Children() (r []Atom) {
-	if self.Header != nil {
-		r = append(r, self.Header)
+func (t Track) Children() []Atom {
+	var atoms []Atom
+	if t.Header != nil {
+		atoms = append(atoms, t.Header)
 	}
-	if self.Media != nil {
-		r = append(r, self.Media)
+	if t.Media != nil {
+		atoms = append(atoms, t.Media)
 	}
-	r = append(r, self.Unknowns...)
-	return
+	return append(atoms, t.Unknowns...)
 }
 
 type TrackHeader struct {
@@ -775,6 +776,146 @@ func (self *TrackHeader) Unmarshal(b []byte, offset int) (n int, err error) {
 
 func (self TrackHeader) Children() (r []Atom) {
 	return
+}
+
+type Edit struct {
+	EditLists []*EditList
+	Unknowns  []Atom
+	AtomPos
+}
+
+func (e *Edit) Marshal(b []byte) int {
+	binary.BigEndian.PutUint32(b[4:], uint32(EDTS))
+	n := 8
+	for _, el := range e.EditLists {
+		n += el.Marshal(b[n:])
+	}
+	for _, atom := range e.Unknowns {
+		n += atom.Marshal(b[n:])
+	}
+	binary.BigEndian.PutUint32(b[0:], uint32(n))
+	return n
+}
+
+func (e *Edit) Len() int {
+	n := 8
+	for _, el := range e.EditLists {
+		n += el.Len()
+	}
+	for _, atom := range e.Unknowns {
+		n += atom.Len()
+	}
+	return n
+}
+
+func (e *Edit) Unmarshal(b []byte, offset int) (int, error) {
+	e.setPos(offset, len(b))
+	n := 8
+	for n+8 < len(b) {
+		tag := Tag(pio.U32BE(b[n+4:]))
+		size := int(pio.U32BE(b[n:]))
+		if len(b) < n+size {
+			return n, parseErr("TagSizeInvalid", n+offset, nil)
+		}
+		switch tag {
+		case ELST:
+			atom := &EditList{}
+			if _, err := atom.Unmarshal(b[n:n+size], offset+n); err != nil {
+				return n, parseErr("elst", n+offset, err)
+			}
+			e.EditLists = append(e.EditLists, atom)
+		default:
+			atom := &Dummy{Tag_: tag, Data: b[n : n+size]}
+			if _, err := atom.Unmarshal(b[n:n+size], offset+n); err != nil {
+				return n, parseErr("", n+offset, err)
+			}
+			e.Unknowns = append(e.Unknowns, atom)
+		}
+		n += size
+	}
+	return n, nil
+}
+
+func (e *Edit) Children() []Atom {
+	var atoms []Atom
+	for _, el := range e.EditLists {
+		atoms = append(atoms, el)
+	}
+	return append(atoms, e.Unknowns...)
+}
+
+type EditList struct {
+	Version uint32
+	Entries []*EditListEntry
+	AtomPos
+}
+
+type EditListEntry struct {
+	// SegmentDuration specifies the duration of this edit segment in units of the timescale in the Movie Header Box
+	SegmentDuration uint64
+	// MediaTime is the starting time within the media of this edit segment (in media time scale units, in composition time).
+	// If this field is set to –1, it is an empty edit. The last edit in a track shall never be an empty edit. Any difference
+	// between the duration in the Movie Header Box, and the track’s duration is expressed as an implicit empty edit at the end.
+	MediaTime int64
+	// MediaRateInteger specifies the relative rate at which to play the media corresponding to this edit segment. If
+	// this value is 0, then the edit is specifying a ‘dwell’: the media at media-time is presented for the
+	// segment-duration. Otherwise this field shall contain the value 1.
+	MediaRateInteger int16
+	// MediaRateFraction is always 0
+	MediaRateFraction int16
+}
+
+func (el *EditList) Marshal(b []byte) int {
+	// TODO
+	return 0
+}
+
+func (el *EditList) Len() int {
+	// TODO
+	return 0
+}
+
+func (el *EditList) Unmarshal(b []byte, offset int) (int, error) {
+	el.AtomPos.setPos(offset, len(b))
+	n := 8
+	if len(b) < n+4 {
+		return n, parseErr("Version", n+offset, nil)
+	}
+	if el.Version != 0 && el.Version != 1 {
+		return n, parseErr("UnknownVersion", n+offset, nil)
+	}
+	el.Version = binary.BigEndian.Uint32(b[n : n+4])
+	n += 4
+	if len(b) < n+4 {
+		return n, parseErr("EntryCount", n+offset, nil)
+	}
+	entryCount := binary.BigEndian.Uint32(b[n : n+4])
+	n += 4
+	valueSize := 4 + 4*el.Version // only works for version 0 and 1. the rest return an error above
+	if len(b) < n+int(entryCount*(valueSize*2+4)) {
+		return n, parseErr("Entries", n+offset, nil)
+	}
+	for range entryCount {
+		entry := &EditListEntry{}
+		if el.Version == 1 {
+			entry.SegmentDuration = binary.BigEndian.Uint64(b[n : n+8])
+			entry.MediaTime = int64(binary.BigEndian.Uint64(b[n+8 : n+16]))
+			n += 16
+		} else {
+			entry.SegmentDuration = uint64(binary.BigEndian.Uint32(b[n : n+4]))
+			entry.MediaTime = int64(int32(binary.BigEndian.Uint32(b[n+4 : n+8])))
+			n += 8
+		}
+		entry.MediaRateInteger = int16(binary.BigEndian.Uint16(b[n : n+2]))
+		entry.MediaRateFraction = int16(binary.BigEndian.Uint16(b[n+2 : n+4]))
+		n += 4
+		el.Entries = append(el.Entries, entry)
+	}
+	return n, nil
+}
+
+func (el *EditList) Children() []Atom {
+	return nil
 }
 
 type HandlerRefer struct {

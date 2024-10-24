@@ -2,6 +2,7 @@ package mp4io
 
 import (
 	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -388,7 +389,7 @@ func ReadFileAtoms(ctx context.Context, r io.ReadSeeker, onlyTags []Tag) ([]Atom
 	}
 	var atoms []Atom
 	var err error
-	taghdr := make([]byte, 8)
+	taghdr := make([]byte, 16)
 	// Stop if we're found all the tags we were looking for
 	for len(onlyTags) == 0 || len(onlyTagMap) != 0 {
 		select {
@@ -398,22 +399,29 @@ func ReadFileAtoms(ctx context.Context, r io.ReadSeeker, onlyTags []Tag) ([]Atom
 		}
 
 		offset, _ := r.Seek(0, 1)
-		if _, err := io.ReadFull(r, taghdr); err != nil {
+		if _, err := io.ReadFull(r, taghdr[:8]); err != nil {
 			if errors.Is(err, io.EOF) {
 				break
 			}
 			return atoms, err
 		}
-		size := pio.U32BE(taghdr[0:])
-		// Avoid looping forever. The tag heade is 8 bytes so at least account for that.
-		// This isn't necessarily a completely broken file, but it's not totally valid either likely.
-		if size < 8 {
-			size = 8
+		size := uint64(binary.BigEndian.Uint32(taghdr[:4]))
+		bytesRead := 8
+		if size == 1 {
+			// If the 32-bit size is 1 then ther's an extra 64-bit size after the tag.
+			if _, err := io.ReadFull(r, taghdr[8:16]); err != nil {
+				return atoms, err
+			}
+			size = binary.BigEndian.Uint64(taghdr[8:16])
+			if size < 8 {
+				return atoms, fmt.Errorf("invalid box size %d", size)
+			}
+			bytesRead += 8
 		}
-		tag := Tag(pio.U32BE(taghdr[4:]))
+		tag := Tag(binary.BigEndian.Uint32(taghdr[4:]))
 		// Skip tags we don't want
 		if _, keep := onlyTagMap[tag]; len(onlyTags) != 0 && !keep {
-			if _, err = r.Seek(int64(size)-8, 1); err != nil {
+			if _, err = r.Seek(int64(size)-int64(bytesRead), 1); err != nil {
 				return atoms, err
 			}
 			continue
@@ -432,10 +440,10 @@ func ReadFileAtoms(ctx context.Context, r io.ReadSeeker, onlyTags []Tag) ([]Atom
 
 		if atom != nil {
 			b := make([]byte, int(size))
-			if _, err = io.ReadFull(r, b[8:]); err != nil {
+			copy(b, taghdr[:bytesRead])
+			if _, err = io.ReadFull(r, b[bytesRead:]); err != nil {
 				return atoms, err
 			}
-			copy(b, taghdr)
 			if _, err = atom.Unmarshal(b, int(offset)); err != nil {
 				return atoms, err
 			}
@@ -443,7 +451,7 @@ func ReadFileAtoms(ctx context.Context, r io.ReadSeeker, onlyTags []Tag) ([]Atom
 		} else {
 			dummy := &Dummy{Tag_: tag}
 			dummy.setPos(int(offset), int(size))
-			if _, err = r.Seek(int64(size)-8, 1); err != nil {
+			if _, err = r.Seek(int64(size)-int64(bytesRead), 1); err != nil {
 				return atoms, err
 			}
 			atoms = append(atoms, dummy)

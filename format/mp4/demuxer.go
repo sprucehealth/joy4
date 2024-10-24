@@ -25,11 +25,24 @@ func NewDemuxer(r io.ReadSeeker) *Demuxer {
 	}
 }
 
-func (self *Demuxer) Streams(ctx context.Context) (streams []av.CodecData, err error) {
-	if err = self.probe(ctx); err != nil {
+// Duration returns the duration from the header is known. If the duration is not stored then
+// -1 is returned and the duration needs to be determined from the streams.
+func (d *Demuxer) Duration(ctx context.Context) (time.Duration, error) {
+	if err := d.probe(ctx); err != nil {
+		return -1, nil
+	}
+	moov := d.movieAtom
+	if moov.Header.TimeScale <= 0 || moov.Header.Duration < 0 {
+		return -1, nil
+	}
+	return time.Duration(moov.Header.Duration) * time.Second / time.Duration(moov.Header.TimeScale), nil
+}
+
+func (d *Demuxer) Streams(ctx context.Context) (streams []av.CodecData, err error) {
+	if err = d.probe(ctx); err != nil {
 		return
 	}
-	for _, stream := range self.streams {
+	for _, stream := range d.streams {
 		streams = append(streams, stream.CodecData)
 	}
 	return
