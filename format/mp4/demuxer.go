@@ -411,15 +411,15 @@ func (self *Stream) readPacket(skipData bool) (pkt av.Packet, err error) {
 	return
 }
 
-func (self *Stream) seekToTime(tm time.Duration) (err error) {
-	index := self.timeToSampleIndex(tm)
-	if err = self.setSampleIndex(index); err != nil {
-		return
+func (s *Stream) seekToTime(tm time.Duration) error {
+	index := s.timeToSampleIndex(tm)
+	if err := s.setSampleIndex(index); err != nil {
+		return err
 	}
 	if false {
-		fmt.Printf("stream[%d]: seekToTime index=%v time=%v cur=%v\n", self.idx, index, tm, self.tsToTime(self.dts))
+		fmt.Printf("stream[%d]: seekToTime index=%v time=%v cur=%v\n", s.idx, index, tm, s.tsToTime(s.dts))
 	}
-	return
+	return nil
 }
 
 func (self *Stream) timeToSampleIndex(tm time.Duration) int {
