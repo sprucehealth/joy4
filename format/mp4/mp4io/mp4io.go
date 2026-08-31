@@ -518,6 +518,10 @@ func (self ChunkOffset) String() string {
 	return fmt.Sprintf("entries=%d", len(self.Entries))
 }
 
+func (self ChunkOffset64) String() string {
+	return fmt.Sprintf("entries=%d", len(self.Entries))
+}
+
 func (self TrackFragRun) String() string {
 	return fmt.Sprintf("dataoffset=%d", self.DataOffset)
 }

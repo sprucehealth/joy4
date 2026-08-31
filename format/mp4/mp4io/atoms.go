@@ -115,6 +115,12 @@ func (self ChunkOffset) Tag() Tag {
 	return STCO
 }
 
+const CO64 = Tag(0x636f3634)
+
+func (self ChunkOffset64) Tag() Tag {
+	return CO64
+}
+
 const TRUN = Tag(0x7472756e)
 
 func (self TrackFragRun) Tag() Tag {
@@ -1724,8 +1730,30 @@ type SampleTable struct {
 	SampleToChunk     *SampleToChunk
 	SyncSample        *SyncSample
 	ChunkOffset       *ChunkOffset
+	ChunkOffset64     *ChunkOffset64
 	SampleSize        *SampleSize
 	AtomPos
+}
+
+// ChunkOffsetCount returns the number of chunk offsets in the table, which may be stored as
+// either 'stco' or 'co64'.
+func (self *SampleTable) ChunkOffsetCount() int {
+	if self.ChunkOffset != nil {
+		return len(self.ChunkOffset.Entries)
+	}
+	if self.ChunkOffset64 != nil {
+		return len(self.ChunkOffset64.Entries)
+	}
+	return 0
+}
+
+// ChunkOffsetEntry returns the file offset of chunk i. The caller is responsible for keeping i
+// within ChunkOffsetCount.
+func (self *SampleTable) ChunkOffsetEntry(i int) int64 {
+	if self.ChunkOffset != nil {
+		return int64(self.ChunkOffset.Entries[i])
+	}
+	return int64(self.ChunkOffset64.Entries[i])
 }
 
 func (self SampleTable) Marshal(b []byte) (n int) {
@@ -1754,6 +1782,9 @@ func (self SampleTable) marshal(b []byte) (n int) {
 	if self.ChunkOffset != nil {
 		n += self.ChunkOffset.Marshal(b[n:])
 	}
+	if self.ChunkOffset64 != nil {
+		n += self.ChunkOffset64.Marshal(b[n:])
+	}
 	if self.SampleSize != nil {
 		n += self.SampleSize.Marshal(b[n:])
 	}
@@ -1779,6 +1810,9 @@ func (self SampleTable) Len() (n int) {
 	}
 	if self.ChunkOffset != nil {
 		n += self.ChunkOffset.Len()
+	}
+	if self.ChunkOffset64 != nil {
+		n += self.ChunkOffset64.Len()
 	}
 	if self.SampleSize != nil {
 		n += self.SampleSize.Len()
@@ -1851,6 +1885,15 @@ func (self *SampleTable) Unmarshal(b []byte, offset int) (n int, err error) {
 				}
 				self.ChunkOffset = atom
 			}
+		case CO64:
+			{
+				atom := &ChunkOffset64{}
+				if _, err = atom.Unmarshal(b[n:n+size], offset+n); err != nil {
+					err = parseErr("co64", n+offset, err)
+					return
+				}
+				self.ChunkOffset64 = atom
+			}
 		case STSZ:
 			{
 				atom := &SampleSize{}
@@ -1884,6 +1927,9 @@ func (self SampleTable) Children() (r []Atom) {
 	}
 	if self.ChunkOffset != nil {
 		r = append(r, self.ChunkOffset)
+	}
+	if self.ChunkOffset64 != nil {
+		r = append(r, self.ChunkOffset64)
 	}
 	if self.SampleSize != nil {
 		r = append(r, self.SampleSize)
@@ -2843,6 +2889,84 @@ func (self *ChunkOffset) Unmarshal(b []byte, offset int) (n int, err error) {
 }
 
 func (self ChunkOffset) Children() (r []Atom) {
+	return
+}
+
+// ChunkOffset64 is the 'co64' atom, the 64-bit form of 'stco'. A file carries one or the other,
+// never both. Writers that can't predict the final size up front tend to emit it unconditionally,
+// so it also shows up in files far smaller than 4GB.
+type ChunkOffset64 struct {
+	Version uint8
+	Flags   uint32
+	Entries []uint64
+	AtomPos
+}
+
+func (self ChunkOffset64) Marshal(b []byte) (n int) {
+	pio.PutU32BE(b[4:], uint32(CO64))
+	n += self.marshal(b[8:]) + 8
+	pio.PutU32BE(b[0:], uint32(n))
+	return
+}
+
+func (self ChunkOffset64) marshal(b []byte) (n int) {
+	pio.PutU8(b[n:], self.Version)
+	n += 1
+	pio.PutU24BE(b[n:], self.Flags)
+	n += 3
+	pio.PutU32BE(b[n:], uint32(len(self.Entries)))
+	n += 4
+	for _, entry := range self.Entries {
+		pio.PutU64BE(b[n:], entry)
+		n += 8
+	}
+	return
+}
+
+func (self ChunkOffset64) Len() (n int) {
+	n += 8
+	n += 1
+	n += 3
+	n += 4
+	n += 8 * len(self.Entries)
+	return
+}
+
+func (self *ChunkOffset64) Unmarshal(b []byte, offset int) (n int, err error) {
+	(&self.AtomPos).setPos(offset, len(b))
+	n += 8
+	if len(b) < n+1 {
+		err = parseErr("Version", n+offset, err)
+		return
+	}
+	self.Version = pio.U8(b[n:])
+	n += 1
+	if len(b) < n+3 {
+		err = parseErr("Flags", n+offset, err)
+		return
+	}
+	self.Flags = pio.U24BE(b[n:])
+	n += 3
+	if len(b) < n+4 {
+		err = parseErr("EntryCount", n+offset, err)
+		return
+	}
+	entryCount := pio.U32BE(b[n:])
+	n += 4
+	// Checked before allocating so a bogus entry count can't reserve a huge slice.
+	if uint64(len(b)-n) < uint64(entryCount)*8 {
+		err = parseErr("uint64", n+offset, err)
+		return
+	}
+	self.Entries = make([]uint64, entryCount)
+	for i := range self.Entries {
+		self.Entries[i] = pio.U64BE(b[n:])
+		n += 8
+	}
+	return
+}
+
+func (self ChunkOffset64) Children() (r []Atom) {
 	return
 }
 

@@ -122,7 +122,7 @@ func (self *Stream) setSampleIndex(index int) (err error) {
 	start := 0
 	self.chunkGroupIndex = 0
 
-	for self.chunkIndex = range self.sample.ChunkOffset.Entries {
+	for self.chunkIndex = range self.sample.ChunkOffsetCount() {
 		if self.chunkGroupIndex+1 < len(self.sample.SampleToChunk.Entries) &&
 			uint32(self.chunkIndex+1) == self.sample.SampleToChunk.Entries[self.chunkGroupIndex+1].FirstChunk {
 			self.chunkGroupIndex++
@@ -215,10 +215,10 @@ func (self *Stream) setSampleIndex(index int) (err error) {
 }
 
 func (self *Stream) isSampleValid() bool {
-	if self.sample.ChunkOffset == nil {
+	if self.sample.ChunkOffset == nil && self.sample.ChunkOffset64 == nil {
 		return false
 	}
-	if self.chunkIndex >= len(self.sample.ChunkOffset.Entries) {
+	if self.chunkIndex >= self.sample.ChunkOffsetCount() {
 		return false
 	}
 	if self.chunkGroupIndex >= len(self.sample.SampleToChunk.Entries) {
@@ -237,7 +237,10 @@ func (self *Stream) isSampleValid() bool {
 			return false
 		}
 	}
-	if self.sample.SampleSize.SampleSize != 0 {
+	// The per-sample size table is only present, and only read, when SampleSize is zero. Bounds
+	// checking it the other way round marks every constant-sample-size track as exhausted before
+	// its first sample, and leaves the variable-size lookup in readPacket unchecked.
+	if self.sample.SampleSize.SampleSize == 0 {
 		if self.sampleIndex >= len(self.sample.SampleSize.Entries) {
 			return false
 		}
@@ -301,7 +304,7 @@ func (self *Stream) sampleCount() int {
 	if self.sample.SampleSize.SampleSize == 0 {
 		chunkGroupIndex := 0
 		count := 0
-		for chunkIndex := range self.sample.ChunkOffset.Entries {
+		for chunkIndex := range self.sample.ChunkOffsetCount() {
 			n := int(self.sample.SampleToChunk.Entries[chunkGroupIndex].SamplesPerChunk)
 			count += n
 			if chunkGroupIndex+1 < len(self.sample.SampleToChunk.Entries) &&
@@ -327,10 +330,21 @@ func (self *Demuxer) ReadPacket(ctx context.Context, skipData bool) (pkt av.Pack
 	var chosen *Stream
 	var chosenidx int
 	for i, stream := range self.streams {
+		// Skip streams with no samples left. Tracks commonly have different durations, and an
+		// exhausted stream keeps its final dts, so it would stay the lowest forever and end the
+		// demux early while the remaining streams still have packets.
+		if !stream.isSampleValid() {
+			continue
+		}
 		if chosen == nil || stream.tsToTime(stream.dts) < chosen.tsToTime(chosen.dts) {
 			chosen = stream
 			chosenidx = i
 		}
+	}
+	if chosen == nil {
+		// Every stream is exhausted.
+		err = io.EOF
+		return
 	}
 	if false {
 		fmt.Printf("ReadPacket: chosen index=%v time=%v\n", chosen.idx, chosen.tsToTime(chosen.dts))
@@ -381,7 +395,7 @@ func (self *Stream) readPacket(skipData bool) (pkt av.Packet, err error) {
 	}
 	// fmt.Println("readPacket", self.sampleIndex)
 
-	chunkOffset := self.sample.ChunkOffset.Entries[self.chunkIndex]
+	chunkOffset := self.sample.ChunkOffsetEntry(self.chunkIndex)
 	sampleSize := uint32(0)
 	if self.sample.SampleSize.SampleSize != 0 {
 		sampleSize = self.sample.SampleSize.SampleSize
@@ -389,7 +403,7 @@ func (self *Stream) readPacket(skipData bool) (pkt av.Packet, err error) {
 		sampleSize = self.sample.SampleSize.Entries[self.sampleIndex]
 	}
 
-	sampleOffset := int64(chunkOffset) + self.sampleOffsetInChunk
+	sampleOffset := chunkOffset + self.sampleOffsetInChunk
 	if !skipData {
 		pkt.Data = make([]byte, sampleSize)
 		if err = self.demuxer.readat(sampleOffset, pkt.Data); err != nil {
