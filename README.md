@@ -48,29 +48,12 @@ Packet filters ([doc](https://godoc.org/github.com/nareix/joy4/av/pktque))
 - Make A/V sync
 - Customize ([example](https://github.com/nareix/joy4/blob/master/examples/rtmp_server_channels/main.go#L19))
 
-FFMPEG Golang-style binding ([doc](https://godoc.org/github.com/nareix/joy4/cgo/ffmpeg))
-- Audio Encoder / Decoder
-- Video Decoder
-- Audio Resampler
-
 Support codec and container parsers:
 
 - H264 SPS/PPS/AVCDecoderConfigure parser ([doc](https://godoc.org/github.com/nareix/joy4/codec/h264parser))
 - AAC ADTSHeader/MPEG4AudioConfig parser ([doc](https://godoc.org/github.com/nareix/joy4/codec/aacparser))
 - MP4 Atoms parser ([doc](https://godoc.org/github.com/nareix/joy4/format/mp4/mp4io))
 - FLV AMF0 object parser ([doc](https://godoc.org/github.com/nareix/joy4/format/flv/flvio))
-
-# Requirements
-
-Go version >= 1.6
-
-ffmpeg version >= 3.0 (optional)
-
-# TODO
-
-HLS / MPEG-DASH Server
-
-ffmpeg.VideoEncoder / ffmpeg.SWScale
 
 # License
 
