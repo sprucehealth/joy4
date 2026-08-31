@@ -84,7 +84,7 @@ type Tag uint32
 func (self Tag) String() string {
 	var b [4]byte
 	pio.PutU32BE(b[:], uint32(self))
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		if b[i] == 0 {
 			b[i] = ' '
 		}

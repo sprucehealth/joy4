@@ -845,7 +845,8 @@ func (e *Edit) Children() []Atom {
 }
 
 type EditList struct {
-	Version uint32
+	Version uint8
+	Flags   uint32
 	Entries []*EditListEntry
 	AtomPos
 }
@@ -878,21 +879,32 @@ func (el *EditList) Len() int {
 func (el *EditList) Unmarshal(b []byte, offset int) (int, error) {
 	el.AtomPos.setPos(offset, len(b))
 	n := 8
-	if len(b) < n+4 {
+	if len(b) < n+1 {
 		return n, parseErr("Version", n+offset, nil)
 	}
+	el.Version = pio.U8(b[n:])
+	n += 1
+	if len(b) < n+3 {
+		return n, parseErr("Flags", n+offset, nil)
+	}
+	el.Flags = pio.U24BE(b[n:])
+	n += 3
 	if el.Version != 0 && el.Version != 1 {
 		return n, parseErr("UnknownVersion", n+offset, nil)
 	}
-	el.Version = binary.BigEndian.Uint32(b[n : n+4])
-	n += 4
 	if len(b) < n+4 {
 		return n, parseErr("EntryCount", n+offset, nil)
 	}
 	entryCount := binary.BigEndian.Uint32(b[n : n+4])
 	n += 4
-	valueSize := 4 + 4*el.Version // only works for version 0 and 1. the rest return an error above
-	if len(b) < n+int(entryCount*(valueSize*2+4)) {
+	// Version 0 entries hold 32-bit segment duration and media time, version 1 holds 64-bit,
+	// both followed by the 4 bytes of media rate. Sized in 64-bit math so a bogus entry count
+	// can't overflow into a small value that passes the bounds check.
+	entrySize := uint64(12)
+	if el.Version == 1 {
+		entrySize = 20
+	}
+	if uint64(len(b)-n) < uint64(entryCount)*entrySize {
 		return n, parseErr("Entries", n+offset, nil)
 	}
 	for range entryCount {

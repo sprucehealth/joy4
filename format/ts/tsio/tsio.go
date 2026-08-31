@@ -563,7 +563,7 @@ func (self *TSWriter) WritePackets(w io.Writer, datav [][]byte, pcr time.Duratio
 		if _, err = w.Write(self.tshdr[:hdrlen]); err != nil {
 			return
 		}
-		for i := 0; i < n; i++ {
+		for i := range n {
 			if _, err = w.Write(writev[i]); err != nil {
 				return
 			}

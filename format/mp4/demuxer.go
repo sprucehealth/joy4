@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"time"
 
 	"github.com/sprucehealth/joy4/av"
@@ -63,12 +64,14 @@ func (self *Demuxer) probe(ctx context.Context) error {
 		return nil
 	}
 
-	var atoms []mp4io.Atom
-	var err error
-	if atoms, err = mp4io.ReadFileAtoms(ctx, self.r, []mp4io.Tag{mp4io.MOOV}); err != nil {
-		return err
+	atoms, err := mp4io.ReadFileAtoms(ctx, self.r, []mp4io.Tag{mp4io.MOOV})
+	// Rewind even when the read failed. Otherwise the reader is left wherever parsing stopped,
+	// and a later probe starts from there and reports a misleading "'moov' atom not found"
+	// instead of the error that actually caused the failure.
+	if _, serr := self.r.Seek(0, 0); serr != nil && err == nil {
+		err = serr
 	}
-	if _, err := self.r.Seek(0, 0); err != nil {
+	if err != nil {
 		return err
 	}
 
@@ -451,9 +454,9 @@ func (self *Stream) timeToSampleIndex(tm time.Duration) int {
 
 	if self.sample.SyncSample != nil {
 		entries := self.sample.SyncSample.Entries
-		for i := len(entries) - 1; i >= 0; i-- {
-			if entries[i]-1 < uint32(targetIndex) {
-				targetIndex = int(entries[i] - 1)
+		for _, entrie := range slices.Backward(entries) {
+			if entrie-1 < uint32(targetIndex) {
+				targetIndex = int(entrie - 1)
 				break
 			}
 		}

@@ -300,8 +300,8 @@ type AudioEncoder interface {
 	SetChannelLayout(ChannelLayout) error // set encoder channel layout
 	SetSampleFormat(SampleFormat) error   // set encoder sample format
 	SetBitrate(int) error                 // set encoder bitrate
-	SetOption(string, interface{}) error  // encoder setopt, in ffmpeg is av_opt_set_dict()
-	GetOption(string, interface{}) error  // encoder getopt
+	SetOption(string, any) error          // encoder setopt, in ffmpeg is av_opt_set_dict()
+	GetOption(string, any) error          // encoder getopt
 }
 
 // AudioDecoder can decode compressed audio packets into raw audio frame.

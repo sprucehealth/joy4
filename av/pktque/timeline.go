@@ -42,10 +42,7 @@ func (self *Timeline) Pop(dur time.Duration) (tm time.Duration) {
 	tm = self.segs[0].tm
 	for dur > 0 && len(self.segs) > 0 {
 		seg := &self.segs[0]
-		sub := dur
-		if seg.dur < sub {
-			sub = seg.dur
-		}
+		sub := min(seg.dur, dur)
 		seg.dur -= sub
 		dur -= sub
 		seg.tm += sub

@@ -328,7 +328,7 @@ func (self *Client) handle401(res *Response) (err error) {
 	var realm, nonce string
 
 	if len(hdrval) == 2 {
-		for _, field := range strings.Split(hdrval[1], ",") {
+		for field := range strings.SplitSeq(hdrval[1], ",") {
 			field = strings.Trim(field, ", ")
 			if keyval := strings.Split(field, "="); len(keyval) == 2 {
 				key := keyval[0]
@@ -624,7 +624,7 @@ func md5hash(s string) string {
 func (self *Client) Describe() (streams []sdp.Media, err error) {
 	var res Response
 
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		req := Request{
 			Method: "DESCRIBE",
 			Uri:    self.requestUri,
@@ -1000,10 +1000,7 @@ func (self *Stream) handleRtpPacket(packet []byte) (err error) {
 
 	if self.client != nil && self.client.DebugRtp {
 		fmt.Println("rtp: packet", self.CodecData.Type(), "len", len(packet))
-		dumpsize := len(packet)
-		if dumpsize > 32 {
-			dumpsize = 32
-		}
+		dumpsize := min(len(packet), 32)
 		fmt.Print(hex.Dump(packet[:dumpsize]))
 	}
 

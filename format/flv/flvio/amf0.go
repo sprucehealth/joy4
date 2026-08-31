@@ -33,9 +33,9 @@ func amf0ParseErr(message string, offset int, err error) error {
 }
 
 type (
-	AMFMap       map[string]interface{}
-	AMFArray     []interface{}
-	AMFECMAArray map[string]interface{}
+	AMFMap       map[string]any
+	AMFArray     []any
+	AMFECMAArray map[string]any
 )
 
 func parseBEFloat64(b []byte) float64 {
@@ -97,7 +97,7 @@ const (
 	avmplusobjectmarker
 )
 
-func LenAMF0Val(_val interface{}) (n int) {
+func LenAMF0Val(_val any) (n int) {
 	switch val := _val.(type) {
 	case int8:
 		n += lenAMF0Number
@@ -170,7 +170,7 @@ func LenAMF0Val(_val interface{}) (n int) {
 	return
 }
 
-func FillAMF0Val(b []byte, _val interface{}) (n int) {
+func FillAMF0Val(b []byte, _val any) (n int) {
 	switch val := _val.(type) {
 	case int8:
 		n += fillAMF0Number(b[n:], float64(val))
@@ -281,11 +281,11 @@ func FillAMF0Val(b []byte, _val interface{}) (n int) {
 	return
 }
 
-func ParseAMF0Val(b []byte) (val interface{}, n int, err error) {
+func ParseAMF0Val(b []byte) (val any, n int, err error) {
 	return parseAMF0Val(b, 0)
 }
 
-func parseAMF0Val(b []byte, offset int) (val interface{}, n int, err error) {
+func parseAMF0Val(b []byte, offset int) (val any, n int, err error) {
 	if len(b) < n+1 {
 		err = amf0ParseErr("marker", offset+n, err)
 		return
@@ -346,7 +346,7 @@ func parseAMF0Val(b []byte, offset int) (val interface{}, n int, err error) {
 			n += length
 
 			var nval int
-			var oval interface{}
+			var oval any
 			if oval, nval, err = parseAMF0Val(b[n:], offset+n); err != nil {
 				err = amf0ParseErr("object.val", offset+n, err)
 				return
@@ -393,7 +393,7 @@ func parseAMF0Val(b []byte, offset int) (val interface{}, n int, err error) {
 			n += length
 
 			var nval int
-			var oval interface{}
+			var oval any
 			if oval, nval, err = parseAMF0Val(b[n:], offset+n); err != nil {
 				err = amf0ParseErr("array.val", offset+n, err)
 				return

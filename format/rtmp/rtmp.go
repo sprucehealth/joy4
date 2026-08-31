@@ -172,13 +172,13 @@ type Conn struct {
 	commandname    string
 	commandtransid float64
 	commandobj     flvio.AMFMap
-	commandparams  []interface{}
+	commandparams  []any
 
 	gotmsg      bool
 	timestamp   uint32
 	msgdata     []byte
 	msgtypeid   uint8
-	datamsgvals []interface{}
+	datamsgvals []any
 	avtag       flvio.Tag
 
 	eventtype uint16
@@ -386,7 +386,7 @@ func (self *Conn) readConnect() (err error) {
 	}
 
 	var ok bool
-	var _app, _tcurl interface{}
+	var _app, _tcurl any
 	if _app, ok = self.commandobj["app"]; !ok {
 		err = fmt.Errorf("rtmp: `connect` params missing `app`")
 		return
@@ -960,15 +960,15 @@ func (self *Conn) writeSetPeerBandwidth(acksize uint32, limittype uint8) (err er
 	return
 }
 
-func (self *Conn) writeCommandMsg(csid, msgsid uint32, args ...interface{}) (err error) {
+func (self *Conn) writeCommandMsg(csid, msgsid uint32, args ...any) (err error) {
 	return self.writeAMF0Msg(msgtypeidCommandMsgAMF0, csid, msgsid, args...)
 }
 
-func (self *Conn) writeDataMsg(csid, msgsid uint32, args ...interface{}) (err error) {
+func (self *Conn) writeDataMsg(csid, msgsid uint32, args ...any) (err error) {
 	return self.writeAMF0Msg(msgtypeidDataMsgAMF0, csid, msgsid, args...)
 }
 
-func (self *Conn) writeAMF0Msg(msgtypeid uint8, csid, msgsid uint32, args ...interface{}) (err error) {
+func (self *Conn) writeAMF0Msg(msgtypeid uint8, csid, msgsid uint32, args ...any) (err error) {
 	size := 0
 	for _, arg := range args {
 		size += flvio.LenAMF0Val(arg)
@@ -1280,10 +1280,7 @@ func (self *Conn) readChunk() (err error) {
 		return
 	}
 
-	size := int(cs.msgdataleft)
-	if size > self.readMaxChunkSize {
-		size = self.readMaxChunkSize
-	}
+	size := min(int(cs.msgdataleft), self.readMaxChunkSize)
 	off := cs.msgdatalen - cs.msgdataleft
 	buf := cs.msgdata[off : int(off)+size]
 	if _, err = io.ReadFull(self.bufr, buf); err != nil {
@@ -1320,7 +1317,7 @@ func (self *Conn) readChunk() (err error) {
 }
 
 func (self *Conn) handleCommandMsgAMF0(b []byte) (n int, err error) {
-	var name, transid, obj interface{}
+	var name, transid, obj any
 	var size int
 
 	if name, size, err = flvio.ParseAMF0Val(b[n:]); err != nil {
@@ -1343,7 +1340,7 @@ func (self *Conn) handleCommandMsgAMF0(b []byte) (n int, err error) {
 	}
 	self.commandtransid, _ = transid.(float64)
 	self.commandobj, _ = obj.(flvio.AMFMap)
-	self.commandparams = []interface{}{}
+	self.commandparams = []any{}
 
 	for n < len(b) {
 		if obj, size, err = flvio.ParseAMF0Val(b[n:]); err != nil {
@@ -1393,7 +1390,7 @@ func (self *Conn) handleMsg(timestamp uint32, msgsid uint32, msgtypeid uint8, ms
 		b := msgdata
 		n := 0
 		for n < len(b) {
-			var obj interface{}
+			var obj any
 			var size int
 			if obj, size, err = flvio.ParseAMF0Val(b[n:]); err != nil {
 				return
@@ -1480,7 +1477,7 @@ func hsMakeDigest(key []byte, src []byte, gap int) (dst []byte) {
 }
 
 func hsCalcDigestPos(p []byte, base int) (pos int) {
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		pos += int(p[base+i])
 	}
 	pos = (pos % 728) + base + 4

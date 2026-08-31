@@ -20,10 +20,7 @@ func VecSliceTo(in [][]byte, out [][]byte, s int, e int) (n int) {
 	off := 0
 	for s > 0 && i < len(in) {
 		left := len(in[i])
-		read := s
-		if left < read {
-			read = left
-		}
+		read := min(left, s)
 		left -= read
 		off += read
 		s -= read
