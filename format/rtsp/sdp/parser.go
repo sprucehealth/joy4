@@ -43,9 +43,13 @@ func Parse(content string) (sess Session, medias []Media) {
 					case "audio", "video":
 						medias = append(medias, Media{AVType: fields[0]})
 						media = &medias[len(medias)-1]
-						mfields := strings.Split(fields[1], " ")
-						if len(mfields) >= 3 {
-							media.PayloadType, _ = strconv.Atoi(mfields[2])
+						// A well formed line is "m=<type> <port> <proto> <fmt>",
+						// but the remainder may be missing or truncated.
+						if len(fields) >= 2 {
+							mfields := strings.Split(fields[1], " ")
+							if len(mfields) >= 3 {
+								media.PayloadType, _ = strconv.Atoi(mfields[2])
+							}
 						}
 					}
 				}
